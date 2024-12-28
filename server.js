@@ -5,16 +5,24 @@ const path = require('path');
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
+const crypto = require('crypto');
 
 const userStates = {};
 const bannedFilePath = path.join(__dirname, 'banned.json');
+const usersFilePath = path.join(__dirname, 'users.json');
 
 if (!fs.existsSync(bannedFilePath)) {
     fs.writeFileSync(bannedFilePath, JSON.stringify([]));
 }
 
+if (!fs.existsSync(usersFilePath)) {
+    fs.writeFileSync(usersFilePath, JSON.stringify({}));
+}
+
 const loadBannedUsers = () => JSON.parse(fs.readFileSync(bannedFilePath));
 const saveBannedUsers = (bannedUsers) => fs.writeFileSync(bannedFilePath, JSON.stringify(bannedUsers));
+const loadUsers = () => JSON.parse(fs.readFileSync(usersFilePath));
+const saveUsers = (users) => fs.writeFileSync(usersFilePath, JSON.stringify(users));
 
 app.use(express.static('public'));
 app.use(express.json());
@@ -54,6 +62,27 @@ runNpmStartForAllUsers();
 
 io.on('connection', (socket) => {
     console.log('A user connected');
+
+    socket.on('register', (username) => {
+        const users = loadUsers();
+        if (users[username]) {
+            socket.emit('registerResponse', { success: false, message: 'Username already exists' });
+        } else {
+            const userId = crypto.randomBytes(16).toString('hex');
+            users[username] = { id: userId };
+            saveUsers(users);
+            socket.emit('registerResponse', { success: true, userId: userId });
+        }
+    });
+
+    socket.on('login', (username) => {
+        const users = loadUsers();
+        if (users[username]) {
+            socket.emit('loginResponse', { success: true, userId: users[username].id });
+        } else {
+            socket.emit('loginResponse', { success: false, message: 'User not found' });
+        }
+    });
 
     socket.on('start', (userId) => {
         const bannedUsers = loadBannedUsers();
@@ -206,4 +235,4 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => console.log(`🌐 Server running on port ${PORT}.`));
 
-                  
+                
