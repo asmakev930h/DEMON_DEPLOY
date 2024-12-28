@@ -8,6 +8,8 @@
   },
   "dependencies": {
     "express": "^4.17.1",
-    "socket.io": "^4.3.1"
+    "socket.io": "^4.3.1",
+    "bcrypt": "^5.0.1"
   }
 }
+
