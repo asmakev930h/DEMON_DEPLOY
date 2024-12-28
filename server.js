@@ -5,24 +5,20 @@ const path = require('path');
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
-const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 
 const userStates = {};
 const bannedFilePath = path.join(__dirname, 'banned.json');
-const usersFilePath = path.join(__dirname, 'users.json');
+
+// In-memory user store (replace with a database in production)
+const users = {};
 
 if (!fs.existsSync(bannedFilePath)) {
     fs.writeFileSync(bannedFilePath, JSON.stringify([]));
 }
 
-if (!fs.existsSync(usersFilePath)) {
-    fs.writeFileSync(usersFilePath, JSON.stringify({}));
-}
-
 const loadBannedUsers = () => JSON.parse(fs.readFileSync(bannedFilePath));
 const saveBannedUsers = (bannedUsers) => fs.writeFileSync(bannedFilePath, JSON.stringify(bannedUsers));
-const loadUsers = () => JSON.parse(fs.readFileSync(usersFilePath));
-const saveUsers = (users) => fs.writeFileSync(usersFilePath, JSON.stringify(users));
 
 app.use(express.static('public'));
 app.use(express.json());
@@ -62,64 +58,78 @@ runNpmStartForAllUsers();
 
 io.on('connection', (socket) => {
     console.log('A user connected');
+    let authenticatedUser = null;
 
-    socket.on('register', (username) => {
-        const users = loadUsers();
+    socket.on('register', async ({ username, password }) => {
         if (users[username]) {
             socket.emit('registerResponse', { success: false, message: 'Username already exists' });
         } else {
-            const userId = crypto.randomBytes(16).toString('hex');
-            users[username] = { id: userId };
-            saveUsers(users);
-            socket.emit('registerResponse', { success: true, userId: userId });
+            const hashedPassword = await bcrypt.hash(password, 10);
+            users[username] = { password: hashedPassword };
+            socket.emit('registerResponse', { success: true, message: 'Registration successful' });
         }
     });
 
-    socket.on('login', (username) => {
-        const users = loadUsers();
-        if (users[username]) {
-            socket.emit('loginResponse', { success: true, userId: users[username].id });
+    socket.on('login', async ({ username, password }) => {
+        const user = users[username];
+        if (user && await bcrypt.compare(password, user.password)) {
+            authenticatedUser = username;
+            socket.emit('loginResponse', { success: true, message: 'Login successful' });
         } else {
-            socket.emit('loginResponse', { success: false, message: 'User not found' });
+            socket.emit('loginResponse', { success: false, message: 'Invalid credentials' });
         }
     });
 
-    socket.on('start', (userId) => {
+    socket.on('logout', () => {
+        authenticatedUser = null;
+        socket.emit('logoutResponse', { success: true, message: 'Logged out successfully' });
+    });
+
+    socket.on('start', () => {
+        if (!authenticatedUser) {
+            socket.emit('message', '❌ You must be logged in to use this service.');
+            return;
+        }
+
         const bannedUsers = loadBannedUsers();
 
-        if (bannedUsers.includes(userId)) {
+        if (bannedUsers.includes(authenticatedUser)) {
             socket.emit('message', '❌ You are banned from using this service.');
             return;
         }
 
-        const userDir = path.join(__dirname, 'users', String(userId));
+        const userDir = path.join(__dirname, 'users', authenticatedUser);
         if (!fs.existsSync(userDir)) {
             fs.mkdirSync(userDir, { recursive: true });
         }
 
-        userStates[userId] = { step: 'ask_repo', started: true };
+        userStates[authenticatedUser] = { step: 'ask_repo', started: true };
         socket.emit('message', '🎅 WELCOME! Please provide the Repository URL you wish to clone and run.');
     });
 
-    socket.on('command', (data) => {
-        const { userId, message } = data;
+    socket.on('command', (message) => {
+        if (!authenticatedUser) {
+            socket.emit('message', '❌ You must be logged in to use this service.');
+            return;
+        }
+
         const bannedUsers = loadBannedUsers();
 
-        if (bannedUsers.includes(userId)) {
+        if (bannedUsers.includes(authenticatedUser)) {
             socket.emit('message', '❌ You are banned from using this service.');
             return;
         }
 
-        if (!userStates[userId]?.started) {
+        if (!userStates[authenticatedUser]?.started) {
             socket.emit('message', '❌ Please use the start command before proceeding so as to avoid error');
             return;
         }
 
-        const userDir = path.join(__dirname, 'users', String(userId));
-        if (!userStates[userId]) {
-            userStates[userId] = { step: 'ask_repo', started: false };
+        const userDir = path.join(__dirname, 'users', authenticatedUser);
+        if (!userStates[authenticatedUser]) {
+            userStates[authenticatedUser] = { step: 'ask_repo', started: false };
         }
-        const userState = userStates[userId];
+        const userState = userStates[authenticatedUser];
 
         switch (true) {
             case message.toLowerCase() === 'clear':
@@ -163,13 +173,13 @@ io.on('connection', (socket) => {
                 socket.emit('message', `🚀 Running the file: ${filenameToRun}`);
                 const nodeProcess = spawn('node', [filePathToRun], { cwd: userDir });
 
-                userStates[userId].runningProcess = nodeProcess;
+                userStates[authenticatedUser].runningProcess = nodeProcess;
 
                 nodeProcess.stdout.on('data', (data) => socket.emit('message', `✅ NODE OUTPUT:\n${data}`));
                 nodeProcess.stderr.on('data', (data) => socket.emit('message', `⚠️ NODE ERROR:\n${data}`));
                 nodeProcess.on('close', (code) => {
                     socket.emit('message', `🚀 Script finished with code ${code}`);
-                    delete userStates[userId].runningProcess;
+                    delete userStates[authenticatedUser].runningProcess;
                 });
                 break;
 
@@ -190,7 +200,7 @@ io.on('connection', (socket) => {
                         yarnInstall.on('close', (installCode) => {
                             if (installCode === 0) {
                                 socket.emit('message', '✅ Dependencies installed successfully!!\nWhich file would you like to run e.g index.js');
-                                userStates[userId].step = 'ask_file';
+                                userStates[authenticatedUser].step = 'ask_file';
                             } else {
                                 socket.emit('message', '❌ Error installing dependencies.');
                             }
@@ -212,13 +222,13 @@ io.on('connection', (socket) => {
                 socket.emit('message', `🚀 Running the file: ${filename}`);
                 const nodeProcessFile = spawn('node', [filePath], { cwd: userDir });
 
-                userStates[userId].runningProcess = nodeProcessFile;
+                userStates[authenticatedUser].runningProcess = nodeProcessFile;
 
                 nodeProcessFile.stdout.on('data', (data) => socket.emit('message', `✅ NODE OUTPUT:\n${data}`));
                 nodeProcessFile.stderr.on('data', (data) => socket.emit('message', `⚠️ NODE ERROR:\n${data}`));
                 nodeProcessFile.on('close', (code) => {
                     socket.emit('message', `🚀 Script finished with code ${code}`);
-                    delete userStates[userId].runningProcess;
+                    delete userStates[authenticatedUser].runningProcess;
                 });
                 break;
 
@@ -235,4 +245,4 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => console.log(`🌐 Server running on port ${PORT}.`));
 
-                
+    
