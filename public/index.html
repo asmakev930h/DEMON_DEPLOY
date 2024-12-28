@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Deployment App</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Web Deployment App</h1>
+        <div id="log-display"></div>
+        <div id="command-section">
+            <input type="text" id="user-id" placeholder="Enter User ID">
+            <input type="text" id="command-input" placeholder="Enter command">
+            <button id="send-command">Send</button>
+        </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
+
