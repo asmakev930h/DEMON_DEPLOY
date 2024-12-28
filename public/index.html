@@ -4,22 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Web Deployment App</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gray-900 text-white">
-    <div class="container mx-auto px-4 py-8">
-        <h1 class="text-4xl font-bold text-center mb-8">Web Deployment App</h1>
-        <div id="auth-section" class="mb-8">
-            <input type="text" id="username-input" placeholder="Enter username" class="w-full p-2 mb-4 bg-gray-800 border border-gray-700 rounded">
-            <button id="register-btn" class="w-full p-2 mb-2 bg-blue-600 hover:bg-blue-700 rounded">Register</button>
-            <button id="login-btn" class="w-full p-2 bg-green-600 hover:bg-green-700 rounded">Login</button>
+<body>
+    <div class="container">
+        <h1>Web Deployment App</h1>
+        <div id="auth-section">
+            <div id="login-form">
+                <h2>Login</h2>
+                <input type="text" id="login-username" placeholder="Username">
+                <input type="password" id="login-password" placeholder="Password">
+                <button id="login-button">Login</button>
+            </div>
+            <div id="register-form">
+                <h2>Register</h2>
+                <input type="text" id="register-username" placeholder="Username">
+                <input type="password" id="register-password" placeholder="Password">
+                <button id="register-button">Register</button>
+            </div>
         </div>
-        <div id="app-section" class="hidden">
-            <div id="log-display" class="bg-gray-800 border border-gray-700 rounded p-4 h-96 overflow-y-auto mb-4"></div>
-            <div id="command-section" class="flex space-x-2">
-                <input type="text" id="command-input" placeholder="Enter command" class="flex-grow p-2 bg-gray-800 border border-gray-700 rounded">
-                <button id="send-command" class="p-2 bg-purple-600 hover:bg-purple-700 rounded">Send</button>
+        <div id="app-section" style="display: none;">
+            <button id="logout-button">Logout</button>
+            <div id="log-display"></div>
+            <div id="command-section">
+                <input type="text" id="command-input" placeholder="Enter command">
+                <button id="send-command">Send</button>
             </div>
         </div>
     </div>
