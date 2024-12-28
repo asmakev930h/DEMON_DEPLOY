@@ -1,53 +1,72 @@
 body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f0f0f0;
+    font-family: 'Courier New', monospace;
+    background-color: #1a202c;
+    color: #e2e8f0;
 }
 
 .container {
     max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-h1 {
-    text-align: center;
-    color: #333;
 }
 
 #log-display {
-    background-color: #fff;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    padding: 10px;
-    height: 400px;
-    overflow-y: auto;
-    margin-bottom: 20px;
+    font-family: 'Courier New', monospace;
+    background-color: #2d3748;
+    border-color: #4a5568;
+    transition: all 0.3s ease;
 }
 
-#command-section {
-    display: flex;
-    gap: 10px;
+#log-display:hover {
+    box-shadow: 0 0 15px rgba(66, 153, 225, 0.5);
 }
 
-input[type="text"] {
-    flex-grow: 1;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
+#log-display::-webkit-scrollbar {
+    width: 8px;
+}
+
+#log-display::-webkit-scrollbar-track {
+    background: #4a5568;
+}
+
+#log-display::-webkit-scrollbar-thumb {
+    background-color: #718096;
+    border-radius: 4px;
+}
+
+input[type="text"], button {
+    transition: all 0.3s ease;
+}
+
+input[type="text"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.5);
 }
 
 button {
-    padding: 10px 20px;
-    background-color: #007bff;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 button:hover {
-    background-color: #0056b3;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.log-entry {
+    padding: 4px 0;
+    border-bottom: 1px solid #4a5568;
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out;
 }
 
